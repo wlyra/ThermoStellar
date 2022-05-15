@@ -126,9 +126,8 @@ InitialCondition='Opik' # Opik or DoubleCutoff
 case = "RealDiffusion"  # Case to solve (RealDiffusion or SimpleDiffusion)
 
 # The code will calculate until either tmax or itmax is reached.
-
-itmax = 10000000    # Maximum number of timesteps
-it_diagnos = 100  # Frequency in timesteps to print to screen
+itmax = 10000000        # Maximum number of timesteps
+it_diagnos = 100        # Frequency in timesteps to print to screen
 
 # ----------------------------
 # No changes beyond this point
