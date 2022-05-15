@@ -88,6 +88,9 @@ def doubleExpCutoff(x,vmin,vmax):
       (1 - np.exp(-((vmax - c)/s)**10))
     return d
 #------------------------------------------------
+def ICFilter(x,xInner,xSuppress,xOuter):
+  return (np.tanh(x - xInner))*(np.tanh(x - xSuppress) + 1)*np.tanh(-(x - xOuter))/2
+#------------------------------------------------
 def setproblem(case):
 
     if (case=='SimpleDiffusion'):
@@ -114,30 +117,13 @@ def setproblem(case):
     return a,b,tau_eff,lsink,tmax,tout
 #------------------------------------------------
 
-
 # Grid elements.
-x0  = 1           # Grid left limit 
-xn  = 50          # Grid right limit
-nx  = 128         # Resolution
-ng  = 3           # number of ghost zones
+nx  = 128               # Resolution
+grid='log'              # Grid type (log or linear)
+ 
+InitialCondition='Opik' # Opik or DoubleCutoff
 
-#  Construct grid.
-grid='log'
-x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
-
-# Initial Condition.
-
-N = 1/x * doubleExpCutoff(x, x0, xn)
-N=update_bounds(N)
-
-# Case to solve. Options are "RealDiffusion" and "SimpleDiffusion"
-
-case = "RealDiffusion"
-
-a,b,tau_eff,lsink,tmax,tout = setproblem(case)
-
-if (lsink==True):
-    tau1_eff = 1/tau_eff
+case = "RealDiffusion"  # Case to solve (RealDiffusion or SimpleDiffusion)
 
 # The code will calculate until either tmax or itmax is reached.
 
@@ -147,6 +133,40 @@ it_diagnos = 100  # Frequency in timesteps to print to screen
 # ----------------------------
 # No changes beyond this point
 # ----------------------------
+
+ng  = 3                 # number of ghost zones
+
+if (InitialCondition=='DoubleCutoff'):
+    x0  = 1    # Grid left limit 
+    xn = 50    # Grid left limit
+    # call grid
+    x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
+    # function 
+    N = 1/x * doubleExpCutoff(x, x0, xn)
+    # for plotting
+    y0=1e-4
+    yn=0.2
+elif (InitialCondition=='Opik'):
+    x0  = 1    # Grid left limit 
+    xn = 3000  # Grid left limit
+    # call grid
+    x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
+    # function 
+    xMinIC=10
+    N  = 1/x * ICFilter(x, x0, xMinIC, xn)/np.log(xn/xMinIC)
+    # for plotting
+    y0=1e-4
+    yn=0.02
+else:
+    print("Initial Condition=",InitialCondition," not implemented")
+    sys.exit()
+
+N=update_bounds(N)
+
+a,b,tau_eff,lsink,tmax,tout = setproblem(case)
+
+if (lsink==True):
+    tau1_eff = 1/tau_eff
 
 # Coefficients for Runge-Kutta (3rd order)
 
@@ -233,7 +253,7 @@ plt.xscale('log')
 plt.yscale('log')
 plt.xlabel(r'$E_B$')
 plt.ylabel(r'$N(E_B)$')
-plt.ylim([1e-4,0.2])
+plt.ylim([y0,yn])
 plt.xlim([x0,xn])
 plt.legend()
 plt.show()
