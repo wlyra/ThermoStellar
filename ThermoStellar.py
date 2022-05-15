@@ -4,7 +4,7 @@ import astropy.constants as const
 import sys
 
 #------------------------------------------------
-def calc_grid(x0,xn,nx,ng):
+def calc_grid(x0,xn,nx,ng,grid):
     mx = nx + 2*ng    
     i1=ng             # first computational point
     i2=mx-ng-1        # last computational point
@@ -12,33 +12,66 @@ def calc_grid(x0,xn,nx,ng):
     l2=i2+1
 
     Lx = xn-x0
-    dx = Lx/(nx-1)
-    x = np.linspace(x0-3*dx,xn+3*dx,mx)
-    
-    return x,dx,mx,l1,l2,i1,i2
+    if (grid=='linear'):
+        dx = Lx/(nx-1)
+        x = np.linspace(x0-3*dx,xn+3*dx,mx)
+        dx=np.gradient(x)
+        dx_1=1/dx
+        dx_tilde=np.zeros(mx)
+    elif (grid=='log'):
+        #tmp = np.logspace(np.log10(x0),np.log10(xn),nx)
+        #k=(np.diff(tmp)/tmp[:-1])[0]
+        #x = np.zeros(mx)
+        #x[l1:l2]=tmp
+        #for i in range(1,4):
+        #    x[i1-i] = x[i1]/(1+k)**i
+        #    x[i2+i] = x[i2]*(1+k)**i
+
+        xi1 = np.linspace(-ng,nx+ng-1,mx)
+        xi1up=nx-1
+        xi1lo=0
+        a= np.log(xn/x0)/(xi1up-xi1lo)
+        b= .5*(xi1up+xi1lo-np.log(xn*x0)/a)
+        g1=np.exp(a*(xi1-b))
+        g1der1=g1
+        g1der2=g1
+        g1lo=np.exp(a*(xi1lo-b))
+        g1up=np.exp(a*(xi1up-b))
+                                       
+        x     =x0+Lx*(g1  -  g1lo)/(g1up-g1lo)
+        xprim =   Lx*(g1der1*a   )/(g1up-g1lo)
+        xprim2=   Lx*(g1der2*a**2)/(g1up-g1lo)
+
+        dx_1=1./xprim
+        dx_tilde=-xprim2/xprim**2
+
+    else:
+        print("grid function=",grid,"not supported")
+        sys.exit()
+
+    return x,dx_1,dx_tilde,mx,l1,l2,i1,i2
 #------------------------------------------------
-def der(f,x):
-    n=len(x[l1:l2])
-    dx = np.diff(x)[0]
-    df = np.zeros(n)
-    for i in range(n):
+def der(f):
+    df = np.zeros(nx)
+    for i in range(nx):
         j=i+i1
         df[i] =  -1./60*(f[j-3] - f[j+3]) \
           +3./20*(f[j-2] - f[j+2])        \
           -3./4 *(f[j-1] - f[j+1])        
-    return df/dx
+    return df*dx_1[l1:l2]
 #------------------------------------------------
-def der2(f,x):
-    n=len(x[l1:l2])
-    dx = np.diff(x)[0]
-    d2f = np.zeros(n)    
-    for i in range(n):
+def der2(f):
+    d2f = np.zeros(nx)    
+    for i in range(nx):
         j=i+i1
-        d2f[i] =  1./90*(f[j-3] + f[j+3]) \
+        d2f[i] = dx_1[j]**2 * (1./90*(f[j-3] + f[j+3]) \
           -3./20*(f[j-2] + f[j+2])        \
           +3./2 *(f[j-1] + f[j+1])        \
-          - 49/18* f[j]        
-    return d2f/dx**2
+          - 49/18* f[j]        )
+    if (grid=='log'):
+        df = der(f)      
+        d2f = d2f+dx_tilde[l1:l2]*df
+    return d2f
 #------------------------------------------------
 def update_bounds(f):
     for i in range(1,ng+1):
@@ -60,7 +93,7 @@ def setproblem(case):
     if (case=='SimpleDiffusion'):
         a = .25/x
         b = np.repeat(.25,mx)
-        tmax = 1000                                 # Maximum integration time 
+        tmax = 1000                                  # Maximum integration time 
         tout = np.array([1,3,10,30,100,300,1000])   #  Times to plot the data.
         tau_eff=1e30
         lsink = False
@@ -85,16 +118,17 @@ def setproblem(case):
 # Grid elements.
 x0  = 1           # Grid left limit 
 xn  = 50          # Grid right limit
-nx  = 512         # Resolution
+nx  = 128         # Resolution
 ng  = 3           # number of ghost zones
 
 #  Construct grid.
-
-x,dx,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng)
+grid='log'
+x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
 
 # Initial Condition.
 
 N = 1/x * doubleExpCutoff(x, x0, xn)
+N=update_bounds(N)
 
 # Case to solve. Options are "RealDiffusion" and "SimpleDiffusion"
 
@@ -125,8 +159,8 @@ courant_advec  = 0.4
 courant_diffus = 0.4
 courant_sink   = np.log(1.3) #30% max change from one timestep to another
 
-dt_advection  = courant_advec *  min(dx   / np.abs(a[l1:l2]))
-dt_diffusion  = courant_diffus*  min(dx**2/ np.abs(b[l1:l2]))
+dt_advection  = courant_advec *  min((1/dx_1[l1:l2]   )/np.abs(a[l1:l2]))
+dt_diffusion  = courant_diffus*  min((1/dx_1[l1:l2]**2)/np.abs(b[l1:l2]))
 if (lsink==True):
     dt_sink       = courant_sink  *  min(np.abs(tau_eff[l1:l2]))
     dt = min([dt_advection,dt_diffusion,dt_sink])
@@ -134,7 +168,7 @@ if (lsink==True):
 else:
     dt = min([dt_advection,dt_diffusion])
     print("--- it --- t --- dt --- dt_advection --- dt_diffusion --- maxN --- minN")
-    
+
 dt_beta_ts = [i * dt for i in beta_ts]
 
 dNdt = np.zeros(nx)
@@ -155,11 +189,11 @@ for it in range(itmax):
 
         if (case=="SimpleDiffusion"):
             
-            dNdt = dNdt + a[l1:l2]*der(N,x) + b[l1:l2]*der2(N,x)
+            dNdt = dNdt + a[l1:l2]*der(N) + b[l1:l2]*der2(N)
             
         elif (case=="RealDiffusion"):
             
-            dNdt = dNdt - der(a*N,x) + .5*der2(b*N,x) - N[l1:l2]*tau1_eff[l1:l2]
+            dNdt = dNdt - der(a*N) + .5*der2(b*N) - N[l1:l2]*tau1_eff[l1:l2]
 
         else:
             print("Problem case=",case," not implemented")
