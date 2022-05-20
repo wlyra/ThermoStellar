@@ -26,7 +26,6 @@ it_diagnos = 100        # Frequency in timesteps to print to screen
 
 tmax = 40
 tout = np.array([5,10,15,20,25,30,35,40])
-color_out = np.array(['purple','cyan','blue','green','red','brown','yellow','orange'])
 
 # Cutoff on Opik's IC
 
@@ -36,10 +35,13 @@ xMinIC=3
 y0=1e-4
 yn=0.2
 
+overplotJeremyData=False
+
 # ----------------------------
 # No changes beyond this point
 # ----------------------------
 
+color_out = np.array(['purple','cyan','blue','green','red','brown','yellow','orange'])
 
 #------------------------------------------------
 def calc_grid(x0,xn,nx,ng,grid):
@@ -258,27 +260,28 @@ plt.ylabel(r'$N(E_B)$')
 plt.ylim([y0,yn])
 plt.xlim([x0,xn])
 
-xJeff  = np.array([   4.5,   9.5,    20,    45,    95,   200,   450,   950,  2000])
+if (overplotJeremyData==True): 
+    xJeff  = np.array([   4.5,   9.5,    20,    45,    95,   200,   450,   950,  2000])
 
-yJeff0 = np.array([0.02  ,0.013 ,0.012 ,0     ,     0,0     ,0     ,0     ,0     ])
-yJeff1 = np.array([0.0105,0.0101,0.0102,0     ,0.0019,0     ,0     ,2.3e-4,0     ])
-yJeff2 = np.array([0.0065,0.006 ,0.009 ,0.003 ,0.0015,8.5e-4,2.9e-4,0     ,0     ])
-yJeff3 = np.array([0.    ,0.004 ,0.007 ,0.0027,0.0013,9e-4  ,0     ,2.1e-4,1.1e-4])
-yJeff4 = np.array([0.    ,0.    ,0.006 ,0.    ,0.0011,8e-4  ,3.0e-4,0     ,0     ])
-yJeff5 = np.array([0.    ,0.    ,0.0045,0.0018,0.    ,7.5e-4,3.1e-4,2e-4  ,1.2e-4])
-yJeff6 = np.array([0.    ,0.    ,0.004 ,0.    ,0.001 ,5.5e-4,0     ,1.8e-4,1.3e-4])
-yJeff7 = np.array([0.    ,0.    ,0     ,0.0012,8e-4  ,4.1e-4,3.8e-4,1.5e-4,0     ])
-yJeff8 = np.array([2.1e-3,3e-3  ,3.2e-3,9e-4  ,7e-4  ,3e-4  ,3.5e-4,1.6e-4,1.4e-4])
+    yJeff0 = np.array([0.02  ,0.013 ,0.012 ,0     ,     0,0     ,0     ,0     ,0     ])
+    yJeff1 = np.array([0.0105,0.0101,0.0102,0     ,0.0019,0     ,0     ,2.3e-4,0     ])
+    yJeff2 = np.array([0.0065,0.006 ,0.009 ,0.003 ,0.0015,8.5e-4,2.9e-4,0     ,0     ])
+    yJeff3 = np.array([0.    ,0.004 ,0.007 ,0.0027,0.0013,9e-4  ,0     ,2.1e-4,1.1e-4])
+    yJeff4 = np.array([0.    ,0.    ,0.006 ,0.    ,0.0011,8e-4  ,3.0e-4,0     ,0     ])
+    yJeff5 = np.array([0.    ,0.    ,0.0045,0.0018,0.    ,7.5e-4,3.1e-4,2e-4  ,1.2e-4])
+    yJeff6 = np.array([0.    ,0.    ,0.004 ,0.    ,0.001 ,5.5e-4,0     ,1.8e-4,1.3e-4])
+    yJeff7 = np.array([0.    ,0.    ,0     ,0.0012,8e-4  ,4.1e-4,3.8e-4,1.5e-4,0     ])
+    yJeff8 = np.array([2.1e-3,3e-3  ,3.2e-3,9e-4  ,7e-4  ,3e-4  ,3.5e-4,1.6e-4,1.4e-4])
 
-plt.plot(xJeff,yJeff0,'o',color='black',markersize=4)
-plt.plot(xJeff,yJeff1,'o',color=color_out[0],markersize=4)
-plt.plot(xJeff,yJeff2,'o',color=color_out[1],markersize=4)
-plt.plot(xJeff,yJeff3,'o',color=color_out[2],markersize=4)
-plt.plot(xJeff,yJeff4,'o',color=color_out[3],markersize=4)
-plt.plot(xJeff,yJeff5,'o',color=color_out[4],markersize=4)
-plt.plot(xJeff,yJeff6,'o',color=color_out[5],markersize=4)
-plt.plot(xJeff,yJeff7,'o',color=color_out[6],markersize=4)
-plt.plot(xJeff,yJeff8,'o',color=color_out[7],markersize=4)
+    plt.plot(xJeff,yJeff0,'o',color='black',markersize=4)
+    plt.plot(xJeff,yJeff1,'o',color=color_out[0],markersize=4)
+    plt.plot(xJeff,yJeff2,'o',color=color_out[1],markersize=4)
+    plt.plot(xJeff,yJeff3,'o',color=color_out[2],markersize=4)
+    plt.plot(xJeff,yJeff4,'o',color=color_out[3],markersize=4)
+    plt.plot(xJeff,yJeff5,'o',color=color_out[4],markersize=4)
+    plt.plot(xJeff,yJeff6,'o',color=color_out[5],markersize=4)
+    plt.plot(xJeff,yJeff7,'o',color=color_out[6],markersize=4)
+    plt.plot(xJeff,yJeff8,'o',color=color_out[7],markersize=4)
 
 plt.legend()
 plt.show()
