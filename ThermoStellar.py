@@ -3,6 +3,44 @@ import pylab as plt
 import astropy.constants as const
 import sys
 
+# Grid elements.
+x0   = 1                # Grid left limit 
+xn   = 3000             # Grid left limit
+nx   = 128              # Resolution
+grid = 'log'            # Grid type (log or linear)
+
+InitialCondition='Opik' # Opik or DoubleCutoff
+
+case = "RealDiffusion"  # Case to solve (RealDiffusion or SimpleDiffusion)
+
+# The code will calculate until either tmax or itmax is reached.
+itmax = 10000000        # Maximum number of timesteps
+it_diagnos = 100        # Frequency in timesteps to print to screen
+
+# Maximum integration time and Times to plot the data.
+#  Simple diffusion             - tmax=1000, tout = np.array([1,3,10,30,100,300,1000]), xn=50, yn=0.2
+#  Real diffusion, simple IC    - tmax=100,  tout = np.array([0.3,1,3,10,30,100]), xn=50, yn=0.2
+#  Real diffusion, Opik-1 IC    - tmax=100,  tout = np.array([1,3,10,30,100]), xMinIC=10, xn=3000, yn=0.02
+#  Real diffusion, Opik-2 IC    - tmax=40,  tout = np.array([5,10,15,20,25,30,35,40]), xMinIC=3, xn=3000, yn=0.2
+#  Real diffusion, Opik-3 IC    - tmax=40,  tout = np.array([5,10,15,20,25,30,35,40]), xMinIC=3, xn=30000, yn=0.2
+
+tmax = 40
+tout = np.array([5,10,15,20,25,30,35,40])
+color_out = np.array(['purple','cyan','blue','green','red','brown','yellow','orange'])
+
+# Cutoff on Opik's IC
+
+xMinIC=3
+
+# y-limits for plotting
+y0=1e-4
+yn=0.2
+
+# ----------------------------
+# No changes beyond this point
+# ----------------------------
+
+
 #------------------------------------------------
 def calc_grid(x0,xn,nx,ng,grid):
     mx = nx + 2*ng    
@@ -96,8 +134,6 @@ def setproblem(case):
     if (case=='SimpleDiffusion'):
         a = .25/x
         b = np.repeat(.25,mx)
-        tmax = 1000                                  # Maximum integration time 
-        tout = np.array([1,3,10,30,100,300,1000])   #  Times to plot the data.
         tau_eff=1e30
         lsink = False
     elif (case=='RealDiffusion'):
@@ -107,62 +143,29 @@ def setproblem(case):
         c = np.sqrt(np.pi/2) / (lnlambda*x) * 1.0 * (                1-np.exp(-x) )
         sink_simple = 1 - 3./5*(1-x/xn)**2 - 2./5*(1-2*x/xn)**3
         tau_eff = 1/(c*sink_simple)
-        tmax = 100
-        tout = np.array([0.3,1,3,10,30,100])
         lsink = True
     else:
         print("Problem case=",case," not implemented")
         sys.exit()
     
-    return a,b,tau_eff,lsink,tmax,tout
+    return a,b,tau_eff,lsink
 #------------------------------------------------
 
-# Grid elements.
-nx  = 128               # Resolution
-grid='log'              # Grid type (log or linear)
- 
-InitialCondition='Opik' # Opik or DoubleCutoff
 
-case = "RealDiffusion"  # Case to solve (RealDiffusion or SimpleDiffusion)
-
-# The code will calculate until either tmax or itmax is reached.
-itmax = 10000000        # Maximum number of timesteps
-it_diagnos = 100        # Frequency in timesteps to print to screen
-
-# ----------------------------
-# No changes beyond this point
-# ----------------------------
-
-ng  = 3                 # number of ghost zones
+ng   = 3                # number of ghost zones
+x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
 
 if (InitialCondition=='DoubleCutoff'):
-    x0  = 1    # Grid left limit 
-    xn = 50    # Grid left limit
-    # call grid
-    x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
-    # function 
     N = 1/x * doubleExpCutoff(x, x0, xn)
-    # for plotting
-    y0=1e-4
-    yn=0.2
 elif (InitialCondition=='Opik'):
-    x0  = 1    # Grid left limit 
-    xn = 3000  # Grid left limit
-    # call grid
-    x,dx_1,dx_tilde,mx,l1,l2,i1,i2 = calc_grid(x0,xn,nx,ng,grid)
-    # function 
-    xMinIC=10
     N  = 1/x * ICFilter(x, x0, xMinIC, xn)/np.log(xn/xMinIC)
-    # for plotting
-    y0=1e-4
-    yn=0.02
 else:
     print("Initial Condition=",InitialCondition," not implemented")
     sys.exit()
 
 N=update_bounds(N)
 
-a,b,tau_eff,lsink,tmax,tout = setproblem(case)
+a,b,tau_eff,lsink = setproblem(case)
 
 if (lsink==True):
     tau1_eff = 1/tau_eff
@@ -183,10 +186,10 @@ dt_diffusion  = courant_diffus*  min((1/dx_1[l1:l2]**2)/np.abs(b[l1:l2]))
 if (lsink==True):
     dt_sink       = courant_sink  *  min(np.abs(tau_eff[l1:l2]))
     dt = min([dt_advection,dt_diffusion,dt_sink])
-    print("--- it --- t --- dt --- dt_advection --- dt_diffusion --- dt_sink --- maxN --- minN")
+    print("--- it --- t --- dt --- dt_advection --- dt_diffusion --- dt_sink --- dxmin--- maxN --- minN")
 else:
     dt = min([dt_advection,dt_diffusion])
-    print("--- it --- t --- dt --- dt_advection --- dt_diffusion --- maxN --- minN")
+    print("--- it --- t --- dt --- dt_advection --- dt_diffusion --- dxmin --- maxN --- minN")
 
 dt_beta_ts = [i * dt for i in beta_ts]
 
@@ -232,16 +235,16 @@ for it in range(itmax):
         
     if (it % it_diagnos == 0):
         if (lsink==True):
-            print(it,t,dt,dt_advection,dt_diffusion,dt_sink,N[l1:l2].max(),N[l1:l2].min())
+            print(it,t,dt,dt_advection,dt_diffusion,dt_sink,1/dx_1[l1:l2].max(),N[l1:l2].max(),N[l1:l2].min())
         else:
-            print(it,t,dt,dt_advection,dt_diffusion,N[l1:l2].max(),N[l1:l2].min())
+            print(it,t,dt,dt_advection,dt_diffusion,1/dx_1[l1:l2].max(),N[l1:l2].max(),N[l1:l2].min())
             
 #  Output to plot
 
     dt_out = t-tout[itout]
     if ((dt_out > 0) and (dt_out < dt)):
-        plt.plot(x[l1:l2],N[l1:l2],label=r'$\tau=$'+str(tout[itout]),linestyle='--')
-        itout=itout+1        
+        plt.plot(x[l1:l2],N[l1:l2],label=r'$\tau=$'+str(tout[itout]),linestyle='--',color=color_out[itout])
+        itout=itout+1                
 
     if ((it == itmax) or t > tmax):
         print('End of simulation at t =',t)
@@ -254,5 +257,28 @@ plt.xlabel(r'$E_B$')
 plt.ylabel(r'$N(E_B)$')
 plt.ylim([y0,yn])
 plt.xlim([x0,xn])
+
+xJeff  = np.array([   4.5,   9.5,    20,    45,    95,   200,   450,   950,  2000])
+
+yJeff0 = np.array([0.02  ,0.013 ,0.012 ,0     ,     0,0     ,0     ,0     ,0     ])
+yJeff1 = np.array([0.0105,0.0101,0.0102,0     ,0.0019,0     ,0     ,2.3e-4,0     ])
+yJeff2 = np.array([0.0065,0.006 ,0.009 ,0.003 ,0.0015,8.5e-4,2.9e-4,0     ,0     ])
+yJeff3 = np.array([0.    ,0.004 ,0.007 ,0.0027,0.0013,9e-4  ,0     ,2.1e-4,1.1e-4])
+yJeff4 = np.array([0.    ,0.    ,0.006 ,0.    ,0.0011,8e-4  ,3.0e-4,0     ,0     ])
+yJeff5 = np.array([0.    ,0.    ,0.0045,0.0018,0.    ,7.5e-4,3.1e-4,2e-4  ,1.2e-4])
+yJeff6 = np.array([0.    ,0.    ,0.004 ,0.    ,0.001 ,5.5e-4,0     ,1.8e-4,1.3e-4])
+yJeff7 = np.array([0.    ,0.    ,0     ,0.0012,8e-4  ,4.1e-4,3.8e-4,1.5e-4,0     ])
+yJeff8 = np.array([2.1e-3,3e-3  ,3.2e-3,9e-4  ,7e-4  ,3e-4  ,3.5e-4,1.6e-4,1.4e-4])
+
+plt.plot(xJeff,yJeff0,'o',color='black',markersize=4)
+plt.plot(xJeff,yJeff1,'o',color=color_out[0],markersize=4)
+plt.plot(xJeff,yJeff2,'o',color=color_out[1],markersize=4)
+plt.plot(xJeff,yJeff3,'o',color=color_out[2],markersize=4)
+plt.plot(xJeff,yJeff4,'o',color=color_out[3],markersize=4)
+plt.plot(xJeff,yJeff5,'o',color=color_out[4],markersize=4)
+plt.plot(xJeff,yJeff6,'o',color=color_out[5],markersize=4)
+plt.plot(xJeff,yJeff7,'o',color=color_out[6],markersize=4)
+plt.plot(xJeff,yJeff8,'o',color=color_out[7],markersize=4)
+
 plt.legend()
 plt.show()
